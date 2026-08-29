@@ -12,9 +12,14 @@ export default function DemoBanner() {
         boxSizing: "border-box",
       }}
     >
-      <strong>Interactive House — Live Simulation.</strong>{" "}
-      This deployment runs the original distributed architecture with simulated Arduino hardware.
-      The project was also validated with a physical Arduino-based house.
+      <div>
+        <strong>Interactive House — Live Simulation.</strong>{" "}
+        This deployment runs the original distributed architecture with simulated Arduino hardware.
+        The project was also validated with a physical Arduino-based house.
+      </div>
+      <div style={{ marginTop: "3px", opacity: 0.9 }}>
+        Demo login: <strong>primary@email.com</strong> / <strong>primary123</strong>
+      </div>
     </div>
   );
 }
