@@ -1,0 +1,47 @@
+services:
+  server:
+    build:
+      context: ./server
+    expose:
+      - "5001"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; s=socket.create_connection(('127.0.0.1', 5001), 2); s.close()"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 3s
+    restart: unless-stopped
+
+  simulator:
+    build:
+      context: ./device
+    environment:
+      SERVER_HOST: server
+      SERVER_PORT: "5001"
+    depends_on:
+      server:
+        condition: service_healthy
+    restart: unless-stopped
+
+  gateway:
+    build:
+      context: ./webbasedclient/backend/gateway
+    environment:
+      TCP_HOST: server
+      TCP_PORT: "5001"
+      WS_PORT: "3001"
+    expose:
+      - "3001"
+    depends_on:
+      server:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./webbasedclient/frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - gateway
+    restart: unless-stopped
