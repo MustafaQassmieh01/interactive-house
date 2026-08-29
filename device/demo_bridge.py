@@ -17,7 +17,7 @@ class DemoControlDevice(BaseDevice):
             {
                 "type": "register_device",
                 "sender_id": self.device_id,
-                "payload": {"deviceType": "demo_control"},
+                "payload": {"deviceType": "Demo Controls"},
             },
         )
         print(f"[{self.device_id}] Registered demo controls")
