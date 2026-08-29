@@ -1,23 +1,22 @@
-import doorIcon from "../assets/door.png"
-import lightIcon from "../assets/lightbulb.png"
-import fanIcon from "../assets/fan.png"
-import alarmIcon from "../assets/siren.png"
-import steamIcon from "../assets/thermometer.png"
-import motionIcon from "../assets/motion_sensor.png"
-import smokeIcon from "../assets/vape.png"
-import windowIcon from "../assets/window.png"
+import doorIcon from "../assets/door.png";
+import lightIcon from "../assets/lightbulb.png";
+import fanIcon from "../assets/fan.png";
+import alarmIcon from "../assets/siren.png";
+import steamIcon from "../assets/thermometer.png";
+import motionIcon from "../assets/motion_sensor.png";
+import smokeIcon from "../assets/vape.png";
+import windowIcon from "../assets/window.png";
+import smartHomeIcon from "../assets/smart_home.png";
 
 export default function DeviceListPage({
   devices,
   deviceStates,
-  statusMsg,
   onRefresh,
   onOpenDevice,
   onTriggerScene,
   scenePending,
-  role
+  role,
 }) {
-
   const canUseScenes = role !== "caregiver";
 
   const scenes = [
@@ -29,31 +28,29 @@ export default function DeviceListPage({
     const type = deviceType?.toLowerCase() || "";
     const id = deviceId?.toLowerCase() || "";
 
+    if (type.includes("demo")) return "Demo Controls";
     if (type.includes("led") || type.includes("light")) {
       const number = id.split("-").pop();
       return number ? `Light ${number}` : "Light";
     }
-
     if (type.includes("fan")) {
       const number = id.split("-").pop();
       return number ? `Fan ${number}` : "Fan";
     }
-
     if (type.includes("door")) return "Door Lock";
     if (type.includes("servo") || type.includes("window")) return "Window";
     if (type.includes("motion")) return "Motion Sensor";
     if (type.includes("smoke")) return "Smoke Sensor";
-    if (type.includes("temp") || type.includes("temperature"))
-      return "Steam Sensor";
+    if (type.includes("temp") || type.includes("temperature")) return "Temperature Sensor";
     if (type.includes("alarm") || type.includes("buzzer")) return "Alarm";
     if (type.includes("coffee")) return "Coffee Machine";
-
     return deviceType;
   }
 
   function getDeviceIcon(deviceType) {
     const type = deviceType?.toLowerCase() || "";
 
+    if (type.includes("demo")) return smartHomeIcon;
     if (type.includes("door")) return doorIcon;
     if (type.includes("fan")) return fanIcon;
     if (type.includes("servo") || type.includes("window")) return windowIcon;
@@ -61,16 +58,14 @@ export default function DeviceListPage({
     if (type.includes("smoke")) return smokeIcon;
     if (type.includes("temp") || type.includes("temperature")) return steamIcon;
     if (type.includes("alarm") || type.includes("buzzer")) return alarmIcon;
-
     return lightIcon;
   }
 
   function getStatusText(deviceType, state) {
-    if (!state || Object.keys(state).length === 0) {
-      return "Unknown";
-    }
-
     const type = deviceType?.toLowerCase() || "";
+
+    if (type.includes("demo")) return "SIMULATION";
+    if (!state || Object.keys(state).length === 0) return "Unknown";
 
     if (type.includes("led") || type.includes("light")) {
       const isOn = state.ledOn ?? state.lightOn;
@@ -78,61 +73,42 @@ export default function DeviceListPage({
       if (isOn === false) return "OFF";
       return "Unknown";
     }
-
     if (type.includes("fan")) {
       if (state.fanOn === true) return "ON";
       if (state.fanOn === false) return "OFF";
       return "Unknown";
     }
-
     if (type.includes("door")) {
-      if (typeof state.doorState === "string") return state.doorState;
+      if (typeof state.doorState === "string") return state.doorState.toUpperCase();
       if (state.locked === true) return "LOCKED";
       if (state.locked === false) return "UNLOCKED";
       return "Unknown";
     }
-
     if (type.includes("servo") || type.includes("window")) {
       if (state.position === 90) return "OPEN";
       if (state.position === 0) return "CLOSED";
       return state.position?.toString() || "Unknown";
     }
-
-    if (type.includes("motion")) {
-      return state.motionDetected ? "MOTION" : "NO MOTION";
-    }
-
-    if (type.includes("smoke")) {
-      return state.smokeDetected ? "SMOKE" : "CLEAR";
-    }
-
+    if (type.includes("motion")) return state.motionDetected ? "MOTION" : "NO MOTION";
+    if (type.includes("smoke")) return state.smokeDetected ? "SMOKE" : "CLEAR";
     if (type.includes("temp") || type.includes("temperature")) {
       const level = state.steamLevel ?? state.temperature;
-      return level !== undefined ? `Level: ${level}` : "Unknown";
+      return level !== undefined ? `${level} °C` : "Unknown";
     }
-
     if (type.includes("alarm") || type.includes("buzzer")) {
       if (state.alarmOn === true || state.buzzerOn === true) return "ON";
       if (state.alarmOn === false || state.buzzerOn === false) return "OFF";
       return "Unknown";
     }
-
     return "Unknown";
   }
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: "#f8f7ff",
-        fontFamily: "Arial, sans-serif",
-      }}
-    >
+    <div style={{ minHeight: "100vh", background: "#f8f7ff", fontFamily: "Arial, sans-serif" }}>
       <div
         style={{
           height: "220px",
-          background:
-            "linear-gradient(180deg, #6f86b6 0%, #2c3e73 45%, #0d1333 100%)",
+          background: "linear-gradient(180deg, #6f86b6 0%, #2c3e73 45%, #0d1333 100%)",
           color: "#ffffff",
           padding: "48px 38px 0",
           boxSizing: "border-box",
@@ -148,28 +124,11 @@ export default function DeviceListPage({
           }}
         >
           <div>
-            <h1
-              style={{
-                margin: 0,
-                fontSize: "34px",
-                fontWeight: 800,
-              }}
-            >
-              Devices
-            </h1>
-
-            <p
-              style={{
-                marginTop: "12px",
-                marginBottom: 0,
-                fontSize: "18px",
-                color: "rgba(255,255,255,0.9)",
-              }}
-            >
+            <h1 style={{ margin: 0, fontSize: "34px", fontWeight: 800 }}>Devices</h1>
+            <p style={{ marginTop: "12px", marginBottom: 0, fontSize: "18px", color: "rgba(255,255,255,0.9)" }}>
               What would you like to control today?
             </p>
           </div>
-
           <button
             onClick={onRefresh}
             style={{
@@ -198,71 +157,43 @@ export default function DeviceListPage({
           boxSizing: "border-box",
         }}
       >
-        <div
-          style={{
-            maxWidth: "680px",
-            margin: "0 auto",
-            
-          }}
-        >
+        <div style={{ maxWidth: "680px", margin: "0 auto" }}>
           {canUseScenes && (
-              
-              <div style={{ marginBottom: "22px"}}>
-                <div
-                  style={{
-                    fontSize: "18px",
-                    fontWeight: 800,
-                    color: "#1f2a5a",
-                    marginBottom: "12px",
-                    
-                  }}
-                >
-                  Scenes
-                </div>
-
-                <div
-                  style={{
-                    display: "flex",
-                    gap: "12px",
-                    flexWrap: "wrap",
-                  }}
-                >
-                  {scenes.map((scene) => (
-                    <button
-                      key={scene.id}
-                      onClick={() => onTriggerScene?.(scene.id)}
-                      disabled={scenePending}
-                      style={{
-                        flex: "1 1 180px",
-                        padding: "14px 16px",
-                        borderRadius: "18px",
-                        border: "none",
-                        background: "#dce6ff",
-                        color: "#1f2a5a",
-                        fontSize: "15px",
-                        fontWeight: 800,
-                        cursor: "pointer",
-                      }}
-                    >
-                      {scenePending ? "Please wait..." : scene.label}
-                    </button>
-                  ))}
-                </div>
-              </div> 
-              
-
-            )}
+            <div style={{ marginBottom: "22px" }}>
+              <div style={{ fontSize: "18px", fontWeight: 800, color: "#1f2a5a", marginBottom: "12px" }}>
+                Scenes
+              </div>
+              <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
+                {scenes.map((scene) => (
+                  <button
+                    key={scene.id}
+                    onClick={() => onTriggerScene?.(scene.id)}
+                    disabled={scenePending}
+                    style={{
+                      flex: "1 1 180px",
+                      padding: "14px 16px",
+                      borderRadius: "18px",
+                      border: "none",
+                      background: "#dce6ff",
+                      color: "#1f2a5a",
+                      fontSize: "15px",
+                      fontWeight: 800,
+                      cursor: scenePending ? "not-allowed" : "pointer",
+                    }}
+                  >
+                    {scenePending ? "Please wait..." : scene.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {devices && devices.length > 0 ? (
-            <div
-              style={{
-                display: "grid",
-                gap: "16px",
-              }}
-            >
+            <div style={{ display: "grid", gap: "16px" }}>
               {devices.map((d) => {
                 const state = deviceStates?.[d.deviceId];
                 const statusText = getStatusText(d.deviceType, state);
+                const isDemo = d.deviceType?.toLowerCase().includes("demo");
 
                 return (
                   <button
@@ -276,8 +207,8 @@ export default function DeviceListPage({
                       textAlign: "left",
                       padding: "20px 24px",
                       borderRadius: "22px",
-                      border: "none",
-                      background: "#e5e7f0",
+                      border: isDemo ? "2px solid #8aa4df" : "none",
+                      background: isDemo ? "#edf2ff" : "#e5e7f0",
                       boxShadow: "0 8px 18px rgba(0, 0, 0, 0.13)",
                       cursor: "pointer",
                     }}
@@ -291,43 +222,19 @@ export default function DeviceListPage({
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
-                        fontSize: "26px",
                         flexShrink: 0,
                       }}
                     >
-                      <img
-                          src={getDeviceIcon(d.deviceType)}
-                          alt="device icon"
-                          style={{
-                            width: "28px",
-                            height: "28px",
-                            objectFit: "contain",
-                          }}
-                        />
+                      <img src={getDeviceIcon(d.deviceType)} alt="device icon" style={{ width: "28px", height: "28px", objectFit: "contain" }} />
                     </div>
 
                     <div>
-                      <div
-                        style={{
-                          fontSize: "22px",
-                          fontWeight: 800,
-                          color: "#5d6473",
-                          marginBottom: "6px",
-                        }}
-                      >
+                      <div style={{ fontSize: "22px", fontWeight: 800, color: "#5d6473", marginBottom: "6px" }}>
                         {getDeviceTypeLabel(d.deviceType, d.deviceId)}
                       </div>
-
-                      <div
-                        style={{
-                          fontSize: "16px",
-                          color: "#6d7280",
-                          marginBottom: "8px",
-                        }}
-                      >
-                        Tap to view controls
+                      <div style={{ fontSize: "16px", color: "#6d7280", marginBottom: "8px" }}>
+                        {isDemo ? "Trigger simulated sensor events" : "Tap to view controls"}
                       </div>
-
                       <span
                         style={{
                           display: "inline-block",
@@ -360,7 +267,6 @@ export default function DeviceListPage({
               No devices available
             </div>
           )}
-
         </div>
       </div>
     </div>
