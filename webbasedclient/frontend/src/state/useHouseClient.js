@@ -21,8 +21,16 @@ export const VIEW = {
 export function useHouseClient(options = {}) {
   const senderId = options.senderId || "web-1";
 
+  const runtimeWsUrl = (() => {
+    if (typeof window === "undefined") return "ws://localhost:3001";
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    return `${protocol}//${window.location.host}/ws`;
+  })();
+
   const wsUrl =
-    options.wsUrl || (import.meta?.env?.VITE_WS_URL ?? "ws://localhost:3001");
+    options.wsUrl ||
+    import.meta.env.VITE_WS_URL ||
+    (import.meta.env.DEV ? "ws://localhost:3001" : runtimeWsUrl);
 
   const [connected, setConnected] = useState(false);
   const [view, setView] = useState(VIEW.LOGIN);
