@@ -3,6 +3,7 @@ import { useHouseClient, VIEW } from "./state/useHouseClient";
 import LoginPage from "./pages/LoginPage";
 import DeviceListPage from "./pages/DeviceListPage";
 import DevicePage from "./pages/DevicePage";
+import DemoControlsPage from "./pages/DemoControlsPage";
 import DemoBanner from "./components/DemoBanner";
 
 export default function App() {
@@ -29,6 +30,17 @@ export default function App() {
         onTriggerScene={hc.sendScene}
         scenePending={hc.scenePending}
         role={hc.role}
+      />
+    );
+  } else if (hc.selectedDeviceId === "demo-control-1") {
+    page = (
+      <DemoControlsPage
+        uiItems={hc.uiItems}
+        state={hc.latestState}
+        statusMsg={hc.statusMsg}
+        actionPending={hc.actionPending}
+        onBack={hc.backToDevices}
+        onAction={hc.sendAction}
       />
     );
   } else {
