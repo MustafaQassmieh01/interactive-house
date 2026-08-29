@@ -1,3 +1,175 @@
+# Interactive House — Distributed IoT Platform
+
+A server-centric smart-home platform connecting web, mobile, server, and hardware components through a shared networking architecture. The system was developed as a university group project and was validated with physical Arduino-based hardware. This portfolio branch adds a public simulation mode so the complete distributed architecture can still be demonstrated without the physical house.
+
+> **Portfolio Demo — Live Simulation Mode**  
+> The demo replaces only the physical Arduino hardware with simulated devices. The networking, server routing, WebSocket gateway, TCP communication, state propagation, scenes, and automation logic remain part of the running system.
+
+## Architecture
+
+```text
+Browser
+  ↓
+React / Vite frontend
+  ↓ WebSocket
+Node.js WebSocket-to-TCP gateway
+  ↓ TCP / NDJSON
+Python server
+  ↓ TCP
+Hardware bridge / simulated devices
+  ↓
+Arduino hardware in the original physical setup
+```
+
+State updates travel back through the same architecture so the browser reflects device and sensor changes in real time.
+
+### Technology
+
+| Layer | Technology |
+| --- | --- |
+| Web client | React, Vite, JavaScript |
+| Browser gateway | Node.js, WebSockets |
+| Central server | Python, TCP sockets, threading |
+| Protocol | NDJSON over TCP |
+| Persistence | SQLite |
+| Mobile client | Android / Kotlin |
+| Hardware bridge | Python serial/TCP integration |
+| Physical hardware | Arduino, sensors, LEDs, servos, fan, alarm |
+| Portfolio demo | Simulated hardware bridge |
+
+## Key Features
+
+- Dynamic device registration and device-provided UI definitions.
+- Live state synchronization between devices and multiple clients.
+- React web client and Android/Kotlin client using the same server architecture.
+- Python TCP server with SQLite persistence and message validation.
+- WebSocket-to-TCP gateway allowing browser clients to use the TCP-based backend.
+- Physical Arduino integration through a Python hardware bridge.
+- Role-based access control with different permissions for primary users and caregivers.
+- Smoke and temperature sensor integration with server-side automation.
+- **Good Morning** and **Good Night** scenes that trigger multiple device actions.
+- End-to-end, validation, and response-time/latency testing.
+- Public simulation mode for demonstrating the distributed system without the original physical house.
+
+## Interactive Portfolio Demo
+
+The portfolio branch adds a virtual **Demo Controls** device with safe controls for provoking real system behavior:
+
+- Trigger smoke
+- Clear smoke
+- Raise temperature
+- Normalize temperature
+- Reset simulation
+
+One useful demo flow is the smoke automation:
+
+```text
+Demo Controls
+      ↓
+Simulated smoke sensor
+      ↓ TCP
+Python server receives sensor state
+      ↓
+Server-side automation rule
+      ↓
+Alarm ON
+      ↓
+State update broadcast
+      ↓
+React UI updates live
+```
+
+This is not a frontend-only animation: the action travels through the WebSocket gateway and TCP server before the resulting device states are returned to the UI.
+
+### Demo credentials
+
+```text
+Primary user
+Email: primary@email.com
+Password: primary123
+
+Caregiver
+Email: caregiver@email.com
+Password: caregiver123
+```
+
+### Recommended demo sequence
+
+1. Log in as the primary user.
+2. Turn an LED or fan on/off.
+3. Open/close the window.
+4. Trigger **Good Morning** or **Good Night**.
+5. Open **Demo Controls**.
+6. Select **Trigger smoke**.
+7. Observe the smoke sensor change to `SMOKE` and the alarm change to `ON`.
+8. Clear the smoke and observe the alarm return to `OFF`.
+
+## My Contribution
+
+This was a group university project, and my work covered multiple parts of the system rather than one isolated component. My contributions included:
+
+- Building the Python test/CLI client used for end-to-end protocol and message-validation testing.
+- Developing and integrating the Node.js WebSocket-to-TCP gateway used by the React web client.
+- Contributing to the React web client, including device control, state handling, action UX, and hardware-facing integration.
+- Implementing the **Good Morning** and **Good Night** scene functionality and integrating scene triggering into the client workflow.
+- Contributing to the Python hardware bridge, Arduino/device integration, additional device support, sensor behavior, and integration debugging.
+- Working on smoke/temperature sensor behavior and server-side automation flows such as smoke → alarm and high temperature → fan.
+- Contributing to multi-client integration so web and Android clients could operate against the shared server architecture.
+- Adding and working with end-to-end validation and server response-time/latency tests.
+- Contributing to technical/software-engineering artifacts covering the iterative architecture, final iteration scope, RBAC design, sensors, automation, scenes, accessibility-oriented functionality, and system integration.
+- Extending the completed university project with the portfolio simulation/deployment layer, including simulated demo controls, local/deployment configuration, Docker definitions, reverse-proxy configuration, and public-demo documentation.
+
+The goal of this section is not to claim sole authorship of the group project, but to make the scope of my own implementation and integration work clear.
+
+## Running the Portfolio Demo Locally — Windows
+
+Docker is **not required** for local development. Run the four components in separate terminals.
+
+### 1. Python server
+
+```powershell
+cd server
+python -m pip install -r requirements.txt
+python server.py
+```
+
+### 2. Simulated hardware bridge
+
+```powershell
+cd device
+python demo_bridge.py
+```
+
+### 3. Node.js gateway
+
+```powershell
+cd webbasedclient/backend/gateway
+npm install
+npm start
+```
+
+### 4. React frontend
+
+```powershell
+cd webbasedclient/frontend
+npm install
+npm run dev
+```
+
+Open the Vite URL shown in the terminal, normally `http://localhost:5173`.
+
+For more detail see:
+
+- [`PORTFOLIO_DEMO.md`](PORTFOLIO_DEMO.md) — portfolio/demo architecture and usage.
+- [`LOCAL_RUN_WINDOWS.md`](LOCAL_RUN_WINDOWS.md) — Windows local-run instructions.
+- [`docs/ITERATIONS_4_5.md`](docs/ITERATIONS_4_5.md) — final iteration technical planning and software-engineering artifact.
+
+---
+
+# Original University Project Documentation
+
+The material below preserves the original iteration-by-iteration project documentation.
+
 # Interactive House Project
 
 The goal is to design a server-centric, distributed system that allows users—especially people with functional disabilities—to independently control their home environment in a simple, accessible, and secure way.
