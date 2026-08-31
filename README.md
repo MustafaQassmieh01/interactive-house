@@ -1,652 +1,293 @@
-# Interactive House Project
+# Interactive House
 
-The goal is to design a server-centric, distributed system that allows users—especially people with functional disabilities—to independently control their home environment in a simple, accessible, and secure way.
+A distributed smart-home control platform that connects **web and Android clients** to a **Python TCP backend** and **Arduino-connected devices** through a shared message protocol.
 
-The system supports permission-based control, where different users (e.g. user vs caregiver) may have different access rights. Devices provide their own UI definitions, and users interact through mobile or web-based units.
+The project explores the engineering problems behind a real multi-client IoT system: device registration, dynamic UI definitions, persistent state, protocol bridging, automation, role-based access control, sensors, scenes, and physical hardware integration.
+
+## At a glance
+
+| Area | Implementation |
+| --- | --- |
+| Backend | Python TCP server |
+| Web | React frontend + Node.js WebSocket gateway |
+| Mobile | Android / Kotlin client |
+| Persistence | SQLite |
+| Hardware | Arduino + Python hardware bridge |
+| Protocol | NDJSON over TCP |
+| Access control | Role-based access control (RBAC) |
+| Automation | Sensors, rules and multi-device scenes |
+| Device model | Dynamic registration + device-provided UI definitions |
 
 ## Architecture
 
-All communication goes through a central server:
-
-- No direct unit ↔ device communication
-
-- Devices register dynamically and upload their UI
-
-- Units render device-provided UIs without hardcoding device logic
-
-## Development Approach
-
-The project follows an iterative (RUP-inspired) process.
-Each iteration delivers a working system, even if small, and builds on the previous one.
-
-## Iteration 1 – Overview
-
-Goal: prove the end-to-end architecture works.
-
-Scope:
-
-- One Python TCP server
-
-- One simulated device (light)
-
-- One Python unit (CLI client)
-
-Focus:
-
-- Device registration
-
-- Dynamic UI distribution
-
-- User actions and state updates
-
-- In-memory state only (no DB, no permissions, no Android app yet)
-
-## Iteration 2 – Overview
-
-Goal: scale the working end-to-end architecture from Iteration 1 by adding persistence, more devices, and real clients.
-
-Scope:
-
-- Server upgraded with SQLite persistence (devices, UI definitions, last known state, seeded users)
-
-- Multiple simulated devices
-
-- Android unit client (Kotlin) replacing the Python CLI as the primary unit
-
-- Web-based unit client
-
-Focus:
-
-- Persistence across server restarts (server reloads devices/UI/state from SQLite on startup)
-
-- Same NDJSON message protocol across Android and Web
-
-- Device-provided UI rendered dynamically across platforms
-
-Not in scope yet:
-
-- Role-based access control (RBAC) / permissions (planned for Iteration 3)
-
-- Advanced security (encryption, password hashing, signup/account management)
-
-### Run the web based client (React + Node Gateway) (Windows)
-
-#### start the python server
-
-```bash
-    cd server
-    pip install -r requirements.txt
-    python server.py
-```
-Demo login credentials (seeded):
-
-user@email.com / user123
-
-bhavik@email.com / bhavik
-
-meryam@email.com / meryam
-
-Note: This is login only (no sign-up in Iteration 2). Users are seeded into SQLite on server startup.
-
-#### start the simulated devices
-
-```bash
-    cd device
-    python light.py
-    python door.py
-    python coffee_machine.py
-```
-#### Start the Node WebSocket Gateway (Browser ↔ TCP Bridge)
-
-```bash
-    cd webbasedclient/backend/gateway
-    npm install
-    npm start
+```text
+                         ┌──────────────────┐
+                         │   React Web UI   │
+                         └────────┬─────────┘
+                                  │ WebSocket
+                                  v
+                         ┌──────────────────┐
+                         │ Node.js Gateway  │
+                         └────────┬─────────┘
+                                  │ TCP / NDJSON
+                                  │
+┌──────────────────┐              v              ┌──────────────────┐
+│ Android Client   │ ───────> Python TCP Server <────── Device Sims │
+│ Kotlin           │           + SQLite           │      / Bridges   │
+└──────────────────┘              │              └──────────────────┘
+                                  │
+                                  v
+                         ┌──────────────────┐
+                         │ Hardware Bridge  │
+                         │      Python      │
+                         └────────┬─────────┘
+                                  │ Serial
+                                  v
+                         ┌──────────────────┐
+                         │ Arduino Devices  │
+                         └──────────────────┘
 ```
 
+All communication goes through the central server. Clients do not talk directly to devices.
 
-#### Start the React Frontend
+## Engineering highlights
 
-```bash
-    cd webbasedclient/frontend
-    npm install
-    npm run dev
+### Dynamic device model
+
+Devices register with the server and provide their own UI definitions. Web and Android clients can therefore render controls without hardcoding every device type into the client.
+
+### Shared protocol across clients
+
+The system uses the same NDJSON-based message model across the Android client, web gateway and device side. This keeps the central server independent of the client UI technology.
+
+### WebSocket ↔ TCP protocol bridge
+
+Browsers cannot use the project's raw TCP protocol directly, so the web client uses a Node.js gateway that bridges browser WebSockets to the Python TCP server.
+
+```text
+Browser → WebSocket → Node gateway → TCP → Python server
 ```
 
-#### Test flow (Web UI)
+### Persistent state
 
-- Verify Connected: Yes
+SQLite stores device registration information, UI definitions, last-known device state and seeded users so the server can rebuild the system state after restart.
 
-- Login with one of the demo users
+### Physical and simulated hardware
 
-- Refresh device list
+The hardware bridge supports both:
 
-- Open a device → UI is rendered dynamically from the device-provided UI definition
+- a **simulation mode** for development without the original physical house;
+- a **serial mode** for communicating with Arduino-connected hardware.
 
-- Press buttons → actions go Unit → Server → Device, and state updates are broadcast back
+This means the complete architecture can still be demonstrated without access to the physical installation.
 
-### Run the Android Client (Android Studio + Emulator) (Windows)
+### Sensors and automation
 
-#### start the python server
+The later iterations add motion, smoke and temperature sensing together with automation rules such as:
 
-```bash
-    cd server
-    pip install -r requirements.txt
-    python server.py
-```
-Demo login credentials (seeded):
-
-user@email.com / user123
-
-bhavik@email.com / bhavik
-
-meryam@email.com / meryam
-
-Note: This is login only (no sign-up in Iteration 2). Users are seeded into SQLite on server startup.
-
-#### start the simulated devices
-
-```bash
-    cd device
-    python light.py
-    python door.py
-    python coffee_machine.py
-```
-#### Open the Android project in Android Studio and run the app
-
-#### Test flow (Android app)
-
-- Login with one of the demo users
-
-- The device list will load from the server
-
-- Select a device (Light / Door / Coffee Machine)
-
-- Press buttons → actions go Unit → Server → Device, and state updates are broadcast back
-
-## Iteration 3 – Overview
-
-Goal: integrate the physical Arduino house into the system and validate that the architecture works with real hardware devices.
-
-Scope:
-
-- Existing Python TCP server (architecture unchanged)
-
-- Physical Arduino devices (LED lights and window)
-
-- Python hardware bridge connecting the Arduino to the server
-
-- Existing unit clients (Web and Android)
-
-Focus:
-
-- Replacing simulated light devices with physical Arduino-controlled lights
-
-- End-to-end interaction from unit client → server → physical device
-
-- Maintaining the same device registration, UI definition, and state update flow
-
-- UI improvements for the Web and Android clients
-
-Not in scope:
-
-- Role-based access control (RBAC) / permissions (planned for Iteration 4)
-
-- Advanced security (encryption, authentication improvements)
-
-- Full physical implementation of all house devices (only lights and window for now)
-
-### Run the web based client (React + Node Gateway) (Windows)
-
-#### start the python server
-
-```bash
-    cd server
-    pip install -r requirements.txt
-    python server.py
-```
-Demo login credentials (seeded):
-
-user@email.com / user123
-
-Note: This is login only (no sign-up). Users are seeded into SQLite on server startup.
-
-#### option A: Run with simulated hardware bridge (no Arduino required)
-
-This mode simulates the physical house but still uses the hardware bridge architecture.
-
-```bash
-    cd device
-    python hardw_bridge.py --simulate
+```text
+Motion detected   → lights ON
+Smoke detected    → alarm ON
+High temperature  → fan ON
 ```
 
-#### option B: Run with real Arduino hardware
+### Scenes
 
-- Upload Arduino firmware
-- Open main.cpp in Arduino IDE
-- Select board: Arduino UNO
-- Select correct port (e.g. COM7)
-- Upload the firmware to the board
-- Connect Arduino via USB
-- Start hardware bridge (real mode):
-
-```bash
-    cd device
-    python hardw_bridge.py --port COM7
-```
-
-#### Start the Node WebSocket Gateway (Browser ↔ TCP Bridge)
-
-```bash
-    cd webbasedclient/backend/gateway
-    npm install
-    npm start
-```
-
-#### Start the React Frontend
-
-```bash
-    cd webbasedclient/frontend
-    npm install
-    npm run dev
-```
-
-#### Test flow (Web UI)
-
-- Verify Connected: Yes
-- Login with one of the demo users
-- Refresh device list
-
-You should see devices such as:
-
-- LED 1
-- LED 2
-- Fan
-- Window (servo)
-- Door
-
-#### Interaction
-
-- Open a device → UI is rendered dynamically (device-provided UI)
-
-- Press buttons → actions flow:
-```bash
-Web UI → Gateway → Server → Hardware Bridge → Arduino → Physical Device
-```
-
-Device state updates are sent back:
-
-```bash
-Arduino → Hardware Bridge → Server → Web UI
-```
-
-#### Expected behavior
-
-- LED turns ON/OFF physically
-
-- Fan activates/deactivates
-
-- Door/servo responds (if connected)
-
-- UI updates after action (with slight delay due to hardware communication)
-
-### Run the Android Client (Android Studio + Emulator) (Windows)
-
-#### start the python server
-
-```bash
-    cd server
-    pip install -r requirements.txt
-    python server.py
-```
-Demo login credentials (seeded):
-
-user@email.com / user123
-
-Note: This is login only (no sign-up). Users are seeded into SQLite on server startup.
-
-#### option A: Run with simulated hardware bridge (no Arduino required)
-
-This mode simulates the physical house but still uses the hardware bridge architecture.
-
-```bash
-    cd device
-    python hardw_bridge.py --simulate
-```
-
-#### option B: Run with real Arduino hardware
-
-- Upload Arduino firmware
-- Open main.cpp in Arduino IDE
-- Select board: Arduino UNO
-- Select correct port (e.g. COM7)
-- Upload the firmware to the board
-- Connect Arduino via USB
-- Start hardware bridge (real mode):
-
-```bash
-    cd device
-    python hardw_bridge.py --port COM7
-```
-
-#### Open the Android project in Android Studio and run the app
-
-#### Test flow (Android)
-
-- Login with one of the demo users
-- Refresh device list
-
-You should see devices such as:
-
-- LED 1
-- LED 2
-- Fan
-- Window (servo)
-- Door
-
-#### Interaction
-
-- Open a device → UI is rendered dynamically (device-provided UI)
-
-- Press buttons → actions flow:
-```bash
-Android UI → Server → Hardware Bridge → Arduino → Physical Device
-```
-
-Device state updates are sent back:
-
-```bash
-Arduino → Hardware Bridge → Server → Android UI
-```
-
-#### Expected behavior
-
-- LED turns ON/OFF physically
-
-- Fan activates/deactivates
-
-- Door/servo responds (if connected)
-
-- UI updates after action (with slight delay due to hardware communication)
-
-
-## Iteration 4 and 5 – Overview
-
-Goal: extend the Interactive House system with automation, sensors, scenes, and role-based access control (RBAC), while improving the Web and Android user interfaces and integrating additional physical Arduino devices.
-
-Scope:
-
-- Existing Python TCP server (extended with automation and RBAC)
-- Existing Web and Android unit clients
-- Physical Arduino devices connected through the Python hardware bridge
-- Additional sensors and automation logic
-- Scene system and role-based permissions
-
-Focus:
-
-- Adding physical sensors: 
-    - Motion sensor
-    - Smoke sensor
-    - Temperature sensor
-    - Alarm/Buzzer
-
-- Adding automation rules: 
-    - Motion detected → lights ON
-    - Smoke detected → alarm ON
-    - High temperature → fan ON
-
-- Adding scene support:
-    - Good Morning scene
-    - Good Night scene
-
-- Adding role-based access control (RBAC):
-    - Admin users can control all devices
-    - Caregiver users have restricted access
-
-- UI redesign and improvements
-
-Not in scope:
-
-- Encryption / secure communication
-- Cloud deployment
-- Advanced AI decision-making
-
-### Run the web based client (React + Node Gateway) (Windows)
-
-#### start the python server
-
-```bash
-    cd server
-    pip install -r requirements.txt
-    python server.py
-```
-Demo login credentials (seeded):
-
-primary@email.com / primary123
-
-caregiver@email.com / caregiver123
-
-Note: This is login only (no sign-up). Users are seeded into SQLite on server startup.
-
-#### option A: Run with simulated hardware bridge (no Arduino required)
-
-This mode simulates the physical house but still uses the hardware bridge architecture.
-
-```bash
-    cd device
-    python hardw_bridge.py --simulate
-```
-
-#### option B: Run with real Arduino hardware
-
-- Upload Arduino firmware
-- Open main.cpp in Arduino IDE
-- Select board: Arduino UNO
-- Select correct port (e.g. COM7)
-- Upload the firmware to the board
-- Connect Arduino via USB
-- Start hardware bridge (real mode):
-
-```bash
-    cd device
-    python hardw_bridge.py --port COM7
-```
-
-#### Start the Node WebSocket Gateway (Browser ↔ TCP Bridge)
-
-```bash
-    cd webbasedclient/backend/gateway
-    npm install
-    npm start
-```
-
-#### Start the React Frontend
-
-```bash
-    cd webbasedclient/frontend
-    npm install
-    npm run dev
-```
-
-#### Test flow (Web UI)
-
-- Verify Connected: Yes
-- Login with one of the demo users
-- Refresh device list
-
-You should see devices such as:
-
-- LED 1
-- LED 2
-- Fan
-- Window (servo)
-- Door
-- Motion Sensor
-- Smoke Sensor
-- Temperature Sensor
-- Alarm
-
-Depending on the user role, some devices may be hidden.
-Caregiver cannot access window and door
-
-#### Interaction
-
-- Open a device → UI is rendered dynamically (device-provided UI)
-
-- Press buttons → actions flow:
-```bash
-Web UI → Gateway → Server → Hardware Bridge → Arduino → Physical Device
-```
-
-Device state updates are sent back:
-
-```bash
-Arduino → Hardware Bridge → Server → Web UI
-```
-
-### Scene Support
-
-Available scenes:
-
-- Good Morning
-- Good Night
-
-Scenes trigger multiple device actions simultaneously.
+Multi-device actions can be grouped into scenes.
 
 Example:
-```bash
-Good Morning:
-- Open window
-- Turn on fan
-- Turn on lights
+
+```text
+Good Morning
+- open window
+- turn on fan
+- turn on lights
+
+Good Night
+- close window
+- turn off fan
+- turn off lights
 ```
-```bash
-Good Night:
-- Close window
-- Turn off fan
-- Turn off lights
-```
 
-### Automation Support
+### Role-based access control
 
-Implemented automation rules:
-```bash
-    Motion detected → lights ON
-    Smoke detected → alarm ON
-    High temperature → fan ON
-```
-### Expected behavior
-- LED turns ON/OFF physically
-- Fan activates/deactivates
-- Window servo responds
-- Door servo responds
-- Alarm activates when smoke is detected
-- Fan activates automatically on high temperature
-- Sensor values update in the UI
-- Device state updates appear dynamically in Web UI
-- Scene buttons trigger multiple actions
+The system supports different user roles and restricts available devices based on permissions. For example, a caregiver account can be prevented from accessing selected devices such as the door or window.
 
-### Run the Android Client (Android Studio + Emulator) (Windows)
+### Multiple client types
 
-#### start the python server
+The same backend can serve:
+
+- Android clients;
+- browser clients through the Node.js gateway;
+- test clients;
+- simulated devices;
+- physical Arduino-connected devices.
+
+## Fastest way to run the project
+
+The simulation mode is the easiest way to run the full web flow without physical Arduino hardware.
+
+### 1. Start the Python server
 
 ```bash
-    cd server
-    pip install -r requirements.txt
-    python server.py
+cd server
+pip install -r requirements.txt
+python server.py
 ```
-Demo login credentials (seeded):
 
+Demo users are seeded into SQLite at startup.
+
+```text
 primary@email.com / primary123
-
 caregiver@email.com / caregiver123
-
-Note: This is login only (no sign-up). Users are seeded into SQLite on server startup.
-
-#### option A: Run with simulated hardware bridge (no Arduino required)
-
-This mode simulates the physical house but still uses the hardware bridge architecture.
-
-```bash
-    cd device
-    python hardw_bridge.py --simulate
 ```
 
-#### option B: Run with real Arduino hardware
-
-- Upload Arduino firmware
-- Open main.cpp in Arduino IDE
-- Select board: Arduino UNO
-- Select correct port (e.g. COM7)
-- Upload the firmware to the board
-- Connect Arduino via USB
-- Start hardware bridge (real mode):
+### 2. Start the simulated hardware bridge
 
 ```bash
-    cd device
-    python hardw_bridge.py --port COM7
+cd device
+python hardw_bridge.py --simulate
 ```
 
-#### Open the Android project in Android Studio and run the app
-
-#### Test flow (Android)
-
-- Login with one of the demo users
-- Refresh device list
-
-You should see devices such as:
-
-- LED 1
-- LED 2
-- Fan
-- Window (servo)
-- Door
-- Motion Sensor
-- Smoke Sensor
-- Temperature Sensor
-- Alarm
-
-Depending on the user role, some devices may be hidden.
-Caregiver cannot access window and door
-
-#### Interaction
-
-- Open a device → UI is rendered dynamically (device-provided UI)
-
-- Press buttons → actions flow:
-```bash
-Android UI → Server → Hardware Bridge → Arduino → Physical Device
-```
-
-Device state updates are sent back:
+### 3. Start the Node.js WebSocket gateway
 
 ```bash
-Arduino → Hardware Bridge → Server → Android UI
+cd webbasedclient/backend/gateway
+npm install
+npm start
 ```
 
-###Android UI Improvements
+### 4. Start the React frontend
 
-The Android client now includes:
+```bash
+cd webbasedclient/frontend
+npm install
+npm run dev
+```
 
-- Redesigned device list screen
-- Device status cards
-- Dynamic sensor information
-- Improved device-specific layouts
-- Modernized styling and gradients
-- Scene buttons
-- Voice command support
-- Improved device icons and state indicators
+### 5. Test the flow
 
-#### Expected behavior
+Log in and verify that the client receives registered devices such as:
 
-- LED turns ON/OFF physically
-- Fan activates/deactivates
-- Window and door servos respond
-- Alarm activates when smoke is detected
-- Fan activates automatically on high temperature
-- Sensor values update in the UI
-- Device states update dynamically
-- Scene buttons trigger multiple actions
-- RBAC restrictions apply depending on user role
+- LED lights;
+- fan;
+- window / servo;
+- door;
+- motion sensor;
+- smoke sensor;
+- temperature sensor;
+- alarm.
 
+A normal web action follows this path:
 
+```text
+Web UI
+  → Node WebSocket gateway
+  → Python TCP server
+  → hardware bridge
+  → device
+```
+
+State updates travel back through the same architecture to the client.
+
+## Running with real Arduino hardware
+
+Upload the included Arduino firmware, connect the board over USB and run the hardware bridge with the relevant serial port.
+
+Example on Windows:
+
+```bash
+cd device
+python hardw_bridge.py --port COM7
+```
+
+The higher-level architecture stays unchanged when switching between simulation and physical hardware.
+
+## Android client
+
+Start the Python server and either the simulated or physical hardware bridge, then open the Android project in Android Studio and run it on an emulator or device.
+
+The Android client supports:
+
+- login;
+- dynamic device lists;
+- device-specific controls;
+- sensor information;
+- scenes;
+- device state updates;
+- role-based visibility;
+- voice command support.
+
+## Project evolution
+
+The project was developed iteratively. Each stage kept the end-to-end architecture working while adding another layer of functionality.
+
+### Iteration 1 — architecture proof
+
+- Python TCP server
+- one simulated light
+- Python CLI client
+- device registration
+- dynamic UI distribution
+- in-memory state
+
+### Iteration 2 — persistence and real clients
+
+- SQLite persistence
+- multiple simulated devices
+- Android / Kotlin client
+- React web client
+- Node.js WebSocket gateway
+- shared NDJSON message protocol
+
+### Iteration 3 — physical hardware integration
+
+- Arduino devices
+- Python hardware bridge
+- simulation and serial modes
+- end-to-end control of physical devices
+
+### Iterations 4–5 — automation and permissions
+
+- motion, smoke and temperature sensors
+- alarm / buzzer
+- automation rules
+- scenes
+- RBAC
+- UI improvements
+- voice command integration
+- additional validation and latency testing
+
+## What this project demonstrates
+
+This repository is primarily useful as an example of systems integration rather than a single isolated application. It combines several layers that have to cooperate correctly:
+
+- TCP networking;
+- WebSockets;
+- message protocol design;
+- concurrent clients;
+- backend state management;
+- persistence;
+- Android development;
+- React development;
+- Node.js protocol bridging;
+- embedded / Arduino integration;
+- sensor-driven automation;
+- access control;
+- end-to-end testing.
+
+## Current limitations
+
+This is an academic / prototype system, not a production smart-home platform. Current limitations include:
+
+- no encrypted device communication;
+- seeded demo accounts instead of production account management;
+- no cloud deployment;
+- no production-grade secrets management;
+- some functionality depends on prototype hardware assumptions.
+
+These constraints are kept explicit so the repository demonstrates the implemented system without overstating its production readiness.
+
+## Repository purpose
+
+The goal of the project is to demonstrate a server-centric distributed architecture where different clients and hardware devices can interact through one consistent backend and protocol while remaining loosely coupled from one another.
