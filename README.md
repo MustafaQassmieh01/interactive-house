@@ -1,133 +1,150 @@
 # Interactive House
 
-A distributed smart-home control platform that connects **web and Android clients** to a **Python TCP backend** and **Arduino-connected devices** through a shared message protocol.
+**Distributed smart-home platform spanning browser, Android, backend networking and physical hardware.**
 
-The project explores the engineering problems behind a real multi-client IoT system: device registration, dynamic UI definitions, persistent state, protocol bridging, automation, role-based access control, sensors, scenes, and physical hardware integration.
+React • Node.js • WebSockets • Python • TCP/IP • NDJSON • SQLite • Kotlin • Arduino
 
-## At a glance
+Interactive House is a multi-client IoT system where web and Android applications control simulated or physical home devices through a central Python server. The interesting part is not turning a light on — it is making several different technologies communicate reliably through one protocol while keeping clients and devices loosely coupled.
 
-| Area | Implementation |
-| --- | --- |
-| Backend | Python TCP server |
-| Web | React frontend + Node.js WebSocket gateway |
-| Mobile | Android / Kotlin client |
-| Persistence | SQLite |
-| Hardware | Arduino + Python hardware bridge |
-| Protocol | NDJSON over TCP |
-| Access control | Role-based access control (RBAC) |
-| Automation | Sensors, rules and multi-device scenes |
-| Device model | Dynamic registration + device-provided UI definitions |
+> **My focus:** networking and systems integration. I built the WebSocket ↔ TCP gateway that made the existing TCP backend accessible from a browser, including message framing, connection lifecycle handling and per-client TCP connections. I later extended the React protocol/client flow to support multi-device scene commands.
 
-## Architecture
+## What I built
+
+### WebSocket ↔ TCP gateway
+
+The backend already communicated using **NDJSON over raw TCP**. Browsers cannot connect to arbitrary TCP sockets, so the web client needed a transport bridge.
+
+I implemented the Node.js gateway between the React application and Python server:
+
+```text
+React browser client
+        │
+        │ WebSocket / JSON
+        ▼
+┌──────────────────────┐
+│  Node.js Gateway     │  ← my main contribution
+│                      │
+│  WS ↔ TCP bridge     │
+│  NDJSON buffering    │
+│  connection cleanup  │
+│  error handling      │
+└──────────┬───────────┘
+           │ TCP / NDJSON
+           ▼
+     Python Server
+```
+
+The gateway:
+
+- accepts WebSocket connections from browser clients;
+- opens a dedicated TCP connection to the Python server for each client;
+- converts WebSocket JSON messages into newline-delimited TCP messages;
+- buffers TCP data until complete NDJSON messages are available;
+- forwards backend state updates back to the browser in real time;
+- handles malformed JSON and socket failures without crashing the client flow;
+- closes the paired connection when either side disconnects.
+
+That allowed the web application to use the **same backend protocol as the native clients without changing the Python server architecture**.
+
+### Scene command integration
+
+I also extended the React-side protocol and client state flow to support **multi-device scenes** such as `Good Morning` and `Good Night`.
+
+Instead of sending several unrelated device commands from the browser, the client can send a scene identifier through the same message pipeline:
+
+```text
+React UI
+   ↓
+trigger_scene
+   ↓
+WebSocket gateway
+   ↓
+Python server
+   ↓
+multiple device actions
+```
+
+This included the protocol message builder, client-side send flow and scene controls in the UI.
+
+### Evidence in the repository
+
+- [`Implement WebSocket-TCP gateway bridge for web client`](https://github.com/bhavikbhagwani/interactive-house/commit/6b06e71ea755b5ec93bbde155890fa25e7d6a276)
+- [`Add scene trigger buttons`](https://github.com/bhavikbhagwani/interactive-house/commit/16dcad95e52807f86e03fc74fb1b61ee9cb6a720)
+
+## Full system architecture
 
 ```text
                          ┌──────────────────┐
                          │   React Web UI   │
                          └────────┬─────────┘
                                   │ WebSocket
-                                  v
+                                  ▼
                          ┌──────────────────┐
                          │ Node.js Gateway  │
                          └────────┬─────────┘
                                   │ TCP / NDJSON
+                                  ▼
+┌──────────────────┐     ┌──────────────────┐     ┌──────────────────┐
+│ Android Client   │ ──▶ │ Python TCP Server│ ◀── │ Device Simulators│
+│ Kotlin           │     │ + SQLite         │     └──────────────────┘
+└──────────────────┘     └────────┬─────────┘
                                   │
-┌──────────────────┐              v              ┌──────────────────┐
-│ Android Client   │ ───────> Python TCP Server <────── Device Sims │
-│ Kotlin           │           + SQLite           │      / Bridges   │
-└──────────────────┘              │              └──────────────────┘
-                                  │
-                                  v
+                                  ▼
                          ┌──────────────────┐
                          │ Hardware Bridge  │
-                         │      Python      │
+                         │ Python           │
                          └────────┬─────────┘
                                   │ Serial
-                                  v
+                                  ▼
                          ┌──────────────────┐
-                         │ Arduino Devices  │
+                         │ Arduino Hardware │
                          └──────────────────┘
 ```
 
-All communication goes through the central server. Clients do not talk directly to devices.
+All application traffic goes through the central server. Clients never communicate directly with devices.
 
-## Engineering highlights
+## Why this project is interesting
 
-### Dynamic device model
+This project combines several problems that usually appear separately in coursework:
 
-Devices register with the server and provide their own UI definitions. Web and Android clients can therefore render controls without hardcoding every device type into the client.
+- **TCP networking** and message framing;
+- **WebSockets** for real-time browser communication;
+- **protocol translation** between browser and backend transports;
+- **concurrent client connections**;
+- **dynamic device registration**;
+- **device-provided UI definitions**;
+- **persistent state** with SQLite;
+- **Android/Kotlin and React clients** using the same backend;
+- **Arduino hardware integration** through a Python bridge;
+- **sensor-driven automation**;
+- **role-based access control**;
+- **multi-device scenes**;
+- **simulation vs. physical hardware** using the same architecture.
 
-### Shared protocol across clients
+The result is a system where changing the client technology or replacing simulated devices with physical hardware does not require redesigning the entire backend.
 
-The system uses the same NDJSON-based message model across the Android client, web gateway and device side. This keeps the central server independent of the client UI technology.
+## Features
 
-### WebSocket ↔ TCP protocol bridge
+| Area | Implementation |
+| --- | --- |
+| Backend | Python TCP server |
+| Web | React + Node.js WebSocket gateway |
+| Mobile | Android / Kotlin |
+| Protocol | NDJSON over TCP |
+| Browser transport | WebSockets |
+| Persistence | SQLite |
+| Hardware | Arduino + Python serial bridge |
+| Devices | Dynamic registration + UI definitions |
+| Automation | Motion, smoke and temperature rules |
+| Access | Role-based access control |
+| Scenes | Multi-device `Good Morning` / `Good Night` actions |
+| Development | Physical and simulated hardware modes |
 
-Browsers cannot use the project's raw TCP protocol directly, so the web client uses a Node.js gateway that bridges browser WebSockets to the Python TCP server.
+## Run it without the original house
 
-```text
-Browser → WebSocket → Node gateway → TCP → Python server
-```
+The project includes a **simulation mode**, so the end-to-end architecture can still be demonstrated without access to the physical Arduino installation.
 
-### Persistent state
-
-SQLite stores device registration information, UI definitions, last-known device state and seeded users so the server can rebuild the system state after restart.
-
-### Physical and simulated hardware
-
-The hardware bridge supports both:
-
-- a **simulation mode** for development without the original physical house;
-- a **serial mode** for communicating with Arduino-connected hardware.
-
-This means the complete architecture can still be demonstrated without access to the physical installation.
-
-### Sensors and automation
-
-The later iterations add motion, smoke and temperature sensing together with automation rules such as:
-
-```text
-Motion detected   → lights ON
-Smoke detected    → alarm ON
-High temperature  → fan ON
-```
-
-### Scenes
-
-Multi-device actions can be grouped into scenes.
-
-Example:
-
-```text
-Good Morning
-- open window
-- turn on fan
-- turn on lights
-
-Good Night
-- close window
-- turn off fan
-- turn off lights
-```
-
-### Role-based access control
-
-The system supports different user roles and restricts available devices based on permissions. For example, a caregiver account can be prevented from accessing selected devices such as the door or window.
-
-### Multiple client types
-
-The same backend can serve:
-
-- Android clients;
-- browser clients through the Node.js gateway;
-- test clients;
-- simulated devices;
-- physical Arduino-connected devices.
-
-## Fastest way to run the project
-
-The simulation mode is the easiest way to run the full web flow without physical Arduino hardware.
-
-### 1. Start the Python server
+### 1. Python server
 
 ```bash
 cd server
@@ -135,21 +152,21 @@ pip install -r requirements.txt
 python server.py
 ```
 
-Demo users are seeded into SQLite at startup.
+Demo accounts:
 
 ```text
 primary@email.com / primary123
 caregiver@email.com / caregiver123
 ```
 
-### 2. Start the simulated hardware bridge
+### 2. Simulated hardware bridge
 
 ```bash
 cd device
 python hardw_bridge.py --simulate
 ```
 
-### 3. Start the Node.js WebSocket gateway
+### 3. WebSocket ↔ TCP gateway
 
 ```bash
 cd webbasedclient/backend/gateway
@@ -157,7 +174,7 @@ npm install
 npm start
 ```
 
-### 4. Start the React frontend
+### 4. React frontend
 
 ```bash
 cd webbasedclient/frontend
@@ -165,129 +182,68 @@ npm install
 npm run dev
 ```
 
-### 5. Test the flow
-
-Log in and verify that the client receives registered devices such as:
-
-- LED lights;
-- fan;
-- window / servo;
-- door;
-- motion sensor;
-- smoke sensor;
-- temperature sensor;
-- alarm.
-
-A normal web action follows this path:
+A normal command then travels through the complete stack:
 
 ```text
-Web UI
-  → Node WebSocket gateway
-  → Python TCP server
-  → hardware bridge
-  → device
+Browser → WebSocket → Node.js Gateway → TCP → Python Server → Device
 ```
 
-State updates travel back through the same architecture to the client.
+and state updates travel back to the browser in real time.
 
-## Running with real Arduino hardware
+## Example system behavior
 
-Upload the included Arduino firmware, connect the board over USB and run the hardware bridge with the relevant serial port.
+The final system supports devices and sensors including lights, fan, door, window/servo, motion sensor, smoke sensor, temperature sensor and alarm.
 
-Example on Windows:
+Automation rules include:
 
-```bash
-cd device
-python hardw_bridge.py --port COM7
+```text
+Motion detected  → lights ON
+Smoke detected   → alarm ON
+High temperature → fan ON
 ```
 
-The higher-level architecture stays unchanged when switching between simulation and physical hardware.
+Scenes can coordinate several devices at once:
 
-## Android client
+```text
+Good Morning → open window + fan on + lights on
+Good Night   → close window + fan off + lights off
+```
 
-Start the Python server and either the simulated or physical hardware bridge, then open the Android project in Android Studio and run it on an emulator or device.
+Role-based permissions can also restrict which devices a caregiver is allowed to access.
 
-The Android client supports:
+## Engineering challenges
 
-- login;
-- dynamic device lists;
-- device-specific controls;
-- sensor information;
-- scenes;
-- device state updates;
-- role-based visibility;
-- voice command support.
+### Bridging two networking models
 
-## Project evolution
+The browser communicates naturally over WebSockets while the existing backend uses raw TCP. The challenge was preserving the server's protocol while translating transports at the edge instead of rewriting the backend around the browser.
 
-The project was developed iteratively. Each stage kept the end-to-end architecture working while adding another layer of functionality.
+### TCP is a stream, not a message queue
 
-### Iteration 1 — architecture proof
+A TCP `data` event is not guaranteed to contain exactly one JSON message. The gateway therefore keeps a receive buffer and only parses data once a newline delimiter indicates a complete NDJSON frame.
 
-- Python TCP server
-- one simulated light
-- Python CLI client
-- device registration
-- dynamic UI distribution
-- in-memory state
+### Connection ownership
 
-### Iteration 2 — persistence and real clients
+Each browser WebSocket owns a corresponding backend TCP connection. Disconnecting either side requires cleaning up the other side to avoid stale sockets and resource leaks.
 
-- SQLite persistence
-- multiple simulated devices
-- Android / Kotlin client
-- React web client
-- Node.js WebSocket gateway
-- shared NDJSON message protocol
+### Keeping the architecture hardware-independent
 
-### Iteration 3 — physical hardware integration
+The same higher-level clients and server work whether the device layer is simulated or connected to Arduino hardware over serial. That separation makes development and testing possible even when the physical installation is unavailable.
 
-- Arduino devices
-- Python hardware bridge
-- simulation and serial modes
-- end-to-end control of physical devices
+## Tech stack
 
-### Iterations 4–5 — automation and permissions
+**Languages:** JavaScript, Python, Kotlin, C/C++  
+**Frontend:** React, Vite  
+**Networking:** TCP/IP, WebSockets, NDJSON  
+**Backend:** Python socket server, Node.js gateway  
+**Data:** SQLite  
+**Mobile:** Android / Kotlin  
+**Embedded:** Arduino, serial communication  
+**Workflow:** Git, iterative team development
 
-- motion, smoke and temperature sensors
-- alarm / buzzer
-- automation rules
-- scenes
-- RBAC
-- UI improvements
-- voice command integration
-- additional validation and latency testing
+## Project context
 
-## What this project demonstrates
+Interactive House was developed as a **team university project**. The complete repository contains contributions from several developers. This fork highlights the areas I personally worked on while preserving the full system so the integration can be understood in context.
 
-This repository is primarily useful as an example of systems integration rather than a single isolated application. It combines several layers that have to cooperate correctly:
+It is a prototype rather than a production smart-home platform: communication is not end-to-end encrypted, demo users are seeded locally, and there is no production cloud deployment or secrets infrastructure.
 
-- TCP networking;
-- WebSockets;
-- message protocol design;
-- concurrent clients;
-- backend state management;
-- persistence;
-- Android development;
-- React development;
-- Node.js protocol bridging;
-- embedded / Arduino integration;
-- sensor-driven automation;
-- access control;
-- end-to-end testing.
-
-## Current limitations
-
-This is an academic / prototype system, not a production smart-home platform. Current limitations include:
-
-- no encrypted device communication;
-- seeded demo accounts instead of production account management;
-- no cloud deployment;
-- no production-grade secrets management;
-- some functionality depends on prototype hardware assumptions.
-
-These constraints are kept explicit so the repository demonstrates the implemented system without overstating its production readiness.
-
-## Repository purpose
-
-The goal of the project is to demonstrate a server-centric distributed architecture where different clients and hardware devices can interact through one consistent backend and protocol while remaining loosely coupled from one another.
+Those limitations are explicit because the value of this project is the engineering underneath it: **networking, protocol design, real-time communication and integration across web, backend and hardware boundaries.**
